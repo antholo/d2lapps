@@ -1,0 +1,13 @@
+{% extends "template.jinja2" %}
+{% block content %}
+	<h2>Just a Quick Double Check...</h2>
+        <form method="post" action="/">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+        </form>
+		<p>The base course you selected was not among those you requested to have combined. Did you want the following courses combined into <b>{{ baseCourse['parsed'] }}, {{ baseCourse['name'] }}</b>?</p>
+			<ul>{% for row in coursesToCombine %}
+			<li>{{ row['parsed'] }}, {{ row['name'] }}</li>
+			{% endfor %}</ul>
+        <p><a href="/confirmation">Yes, that's the combination I want made.</a></p>
+        <p><a href="/request">No, I had a clicking accident.</a></p>
+{% endblock %}

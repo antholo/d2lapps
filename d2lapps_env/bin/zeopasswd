@@ -1,0 +1,10 @@
+#!/home/brian/Documents/JobWork/d2lapps/d2lapps_env/bin/python
+# EASY-INSTALL-ENTRY-SCRIPT: 'ZEO==4.1.0','console_scripts','zeopasswd'
+__requires__ = 'ZEO==4.1.0'
+import sys
+from pkg_resources import load_entry_point
+
+if __name__ == '__main__':
+    sys.exit(
+        load_entry_point('ZEO==4.1.0', 'console_scripts', 'zeopasswd')()
+    )
