@@ -39,9 +39,12 @@ def logout(request):
     request.session.invalidate()
     return HTTPFound(location=request.registry.settings['REDIRECT_AFTER_LOGOUT'])
 
-#@view_config(route_name='login', renderer='templates/login.pt')
+
 @view_config(route_name='login', renderer='templates/login.jinja2')
 def login(request):
+    '''
+    Generates login URL, post-authorization callback URL, and links it from login page.
+    '''
     csrf_token = request.session.get_csrf_token()
     auth_callback = '{0}://{1}:{2}{3}'.format(
         request.registry.settings['SCHEME'],
@@ -59,6 +62,10 @@ def login(request):
 
 @view_config(route_name='request', renderer='templates/request.jinja2')
 def request_form(request):
+    '''
+    Creates two forms on one page, one for selecting courses to be combined
+    and one for adding courses to the list of options for course combinations.
+    '''
     session = request.session
     csrf_token = session.get_csrf_token()
 
@@ -113,52 +120,9 @@ def request_form(request):
         if 'Add Class' in request.POST:# and add_form.validate():
             print("ADD REQUEST")
             return process_add_class(service_uc, request, form, add_form, session, semester_code, csrf_token)
-            '''
-            course_code = make_code(add_form, semester_code)
-            print("COURSE CODE", course_code)
-            course_to_add = get_course(service_uc, course_code, request)
-            if not course_to_add:
-                error = "Please check course details and try again."
-                return {'form': form, 'add_form': add_form, 'error': error}
-            session['course_list'].append({
-                u'courseId': int(course_to_add['Identifier']),
-                u'name': course_to_add['Name'],
-                u'code': course_code,
-                u'parsed': parse_code(course_code)
-                })
-            '''
-            #return {'form': form, 'add_form': add_form, 'csrf_token': csrf_token}
-            #return HTTPFound(location=request.route_url('request'))
         if 'Submit Request' in request.POST: #and form.validate():
             print("SUBMIT REQUEST")
             return process_combine_request(form, add_form, course_list, request, session, csrf_token)
-            '''
-            course_ids = form.courseIds.data
-            courses_to_combine = [course for course in course_list if course['courseId'] in course_ids]
-            base_course = {}
-            if form.baseCourse.data != 'None':
-                update_base_course(base_course, form.baseCourse.data, course_list)
-                print("FIRST if")
-            else:
-                print("FIRST else")
-                session.flash("You must select a base course into which to combine the courses.")
-                return {'form': form, 'add_form':add_form, 'csrf_token': csrf_token}
-            if len(courses_to_combine) == 0 or (len(courses_to_combine) == 1 and base_course in courses_to_combine):
-                print("SECOND if")
-                session.flash("You must select at least two courses to combine.")
-                return {'form': form, 'add_form':add_form, 'csrf_token': csrf_token}
-            session['base_course'], session['courses_to_combine'] = base_course, courses_to_combine
-            print("BASECOURSE", session['base_course'])
-            for course in session['courses_to_combine']:
-                print("C2C", course)
-            if base_course not in courses_to_combine:
-                courses_to_combine.append(base_course)
-                print("THIRD if")
-                return HTTPFound(location=request.route_url('check'))
-            else:
-                print("SECOND else")
-                return HTTPFound(location=request.route_url('confirmation'))
-            '''
         else:
 
             return {'form': form, 'add_form': add_form, 'csrf_token': csrf_token}
@@ -169,6 +133,10 @@ def request_form(request):
 
 @view_config(route_name='check', renderer='templates/check.jinja2')
 def check(request):
+    '''
+    Generates a pre-confirmation check page to present when user selects one
+    course from the combine list and a different one from the base course list.
+    '''
     session = request.session
     if 'uc' not in session:
         session.flash('Please login to place request.')
@@ -178,6 +146,9 @@ def check(request):
 
 @view_config(route_name='confirmation', renderer='templates/confirmation.jinja2')
 def confirmation(request):
+    '''
+    Generates confirmation page and confirmation emails to user and D2L site admin.
+    '''
     session = request.session
     if 'uc' not in session:
         session.flash('Please login to place request.')
@@ -190,7 +161,7 @@ def confirmation(request):
     name = session['firstName'] + ' ' + session['lastName']
     sender = request.registry.settings['mail.username']
 
-    # remove for production
+    '''remove for production'''
     submitter_email = 'lookerb@uwosh.edu'
 
     message = Message(subject="Course Combine Confirmation",
@@ -247,7 +218,7 @@ def store_user_data(session, userData):
 
 def get_semester_code():
     '''
-    Computers current semester code by today's date.
+    Computes current semester code by today's date.
     '''
     year = date.today().year - BASE_YEAR
     month = date.today().month
@@ -281,7 +252,6 @@ def get_courses(uc, semester_code, request, session):
 
     print("REASON", r.reason)
 
-
     course_list = []
     end = False
     while end == False:
@@ -294,15 +264,6 @@ def get_courses(uc, semester_code, request, session):
                     u'code': course['OrgUnit']['Code'],
                     u'parsed': parse_code(course['OrgUnit']['Code'])
                     })
-            '''
-            if semCode.isdigit():
-                if semCode not in courseDict:
-                    courseDict[semCode] = []
-                courseDict[semCode] = update_course_dict(courseDict[semCode],
-                    course['OrgUnit']['Id'],
-                    course['OrgUnit']['Name'],
-                    course['OrgUnit']['Code'])
-            '''
             if r.json()['PagingInfo']['HasMoreItems'] == True:
                 kwargs['params']['bookmark'] = r.json()['PagingInfo']['Bookmark']
                 r = requests.get(myUrl, **kwargs)
@@ -410,6 +371,9 @@ def process_add_class(uc, request, form, add_form, session, semester_code, csrf_
 
 
 def process_combine_request(form, add_form, course_list, request, session, csrf_token):
+    '''
+    Processes form, the form for submitting the actual course combine request.
+    '''
     course_ids = form.courseIds.data
     courses_to_combine = [course for course in course_list if course['courseId'] in course_ids]
     base_course = {}
