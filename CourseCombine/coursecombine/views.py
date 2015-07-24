@@ -1,7 +1,4 @@
 from pyramid.view import view_config
-
-
-from pyramid.view import view_config
 from pyramid.httpexceptions import HTTPFound
 from pyramid import threadlocal
 from pyramid_mailer import get_mailer
@@ -27,8 +24,9 @@ DEC = 12
 parser = SafeConfigParser()
 parser.read('development.ini')
 
-appContext = d2lauth.fashion_app_context(app_id=parser.get('app:main', 'APP_ID'),
-                                         app_key=parser.get('app:main', 'APP_KEY'))
+appContext = d2lauth.fashion_app_context(
+    app_id=parser.get('app:main', 'APP_ID'),
+    app_key=parser.get('app:main', 'APP_KEY'))
 
 
 @view_config(route_name='logout')
@@ -37,13 +35,15 @@ def logout(request):
     Dumps session data
     '''
     request.session.invalidate()
-    return HTTPFound(location=request.registry.settings['REDIRECT_AFTER_LOGOUT'])
+    return HTTPFound(
+        location=request.registry.settings['REDIRECT_AFTER_LOGOUT'])
 
 
 @view_config(route_name='login', renderer='templates/login.jinja2')
 def login(request):
     '''
-    Generates login URL, post-authorization callback URL, and links it from login page.
+    Generates login URL, post-authorization callback URL, and links it from
+    login page.
     '''
     csrf_token = request.session.get_csrf_token()
     auth_callback = '{0}://{1}:{2}{3}'.format(
@@ -66,9 +66,16 @@ def request_form(request):
     Creates two forms on one page, one for selecting courses to be combined
     and one for adding courses to the list of options for course combinations.
     '''
-    session = request.session
-    csrf_token = session.get_csrf_token()
+    #session = request.session
+    csrf_token = request.session.get_csrf_token()
 
+    current_session = session_exists(request)
+    if not current_session:
+        return HTTPFound(location=request.route_url('login'))
+    else:
+        uc, service_uc = current_session
+
+    '''
     if 'uc' in session:
         uc = session['uc']
         service_uc = session['service_uc'] 
@@ -87,25 +94,23 @@ def request_form(request):
         except KeyError:
             session.flash('Please login.')
             return HTTPFound(location=request.route_url('login'))
-
+    '''
     user_data = get_user_data(uc, request)
-    store_user_data(session, user_data)
+    store_user_data(request, user_data)
     semester_code = get_semester_code()
-
-    #NEXT UP -- GET course_list. Use Flask code, because it's a different API route.
     
-    if 'course_list' in session:
-        course_list = session['course_list']
+    if 'course_list' in request.session:
+        course_list = request.session['course_list']
     else:
-        session['course_list'] = course_list = get_courses(service_uc, semester_code, request, session)
+        request.session['course_list'] = course_list = \
+            get_courses(service_uc, semester_code, request)
 
     form = SelectCoursesForm(request.POST, prefix="form")
     form.courseIds.choices = get_courseId_choices(course_list)
 
     # Flash message if no courses are found for this semester.
     if form.courseIds.choices == []:
-        print("CHOICES")
-        session.flash('No courses were found in D2L for this semester. \
+        request.session.flash('No courses were found in D2L for this semester.\
             Please <a href="http://www.uwosh.edu/d2lfaq/d2l-login">log into \
             D2L</a> to confirm you have classes in D2L.')
 
@@ -113,21 +118,14 @@ def request_form(request):
 
     form.baseCourse.choices = get_baseCourse_choices(course_list, request)
     add_form = AdditionalCourseForm(request.POST, prefix="add_form")
-    #Have to look up having two forms on same page w/Pyramid
-    if request.method == 'POST':# and form.validate():
-        print("METHOD EQUALS POST")
-        print("POST", request.POST)
-        if 'Add Class' in request.POST:# and add_form.validate():
-            print("ADD REQUEST")
-            return process_add_class(service_uc, request, form, add_form, session, semester_code, csrf_token)
-        if 'Submit Request' in request.POST: #and form.validate():
-            print("SUBMIT REQUEST")
-            return process_combine_request(form, add_form, course_list, request, session, csrf_token)
+    if request.method == 'POST':
+        if 'Add Class' in request.POST:
+            return process_add_class(service_uc, request, form, add_form, semester_code)
+        if 'Submit Request' in request.POST:
+            return process_combine_request(form, add_form, course_list, request)
         else:
-
             return {'form': form, 'add_form': add_form, 'csrf_token': csrf_token}
     else:
-        print("INITIAL REQUEST")
         return {'form': form, 'add_form': add_form, 'csrf_token': csrf_token}
 
 
@@ -137,28 +135,26 @@ def check(request):
     Generates a pre-confirmation check page to present when user selects one
     course from the combine list and a different one from the base course list.
     '''
-    session = request.session
-    if 'uc' not in session:
-        session.flash('Please login to place request.')
+    if not logged_in(request):
         return HTTPFound(location=request.route_url('login'))
-    return {'baseCourse': session['base_course'], 'coursesToCombine': session['courses_to_combine']}
+    return {'baseCourse': request.session['base_course'],
+        'coursesToCombine': request.session['courses_to_combine']}
 
 
 @view_config(route_name='confirmation', renderer='templates/confirmation.jinja2')
 def confirmation(request):
     '''
-    Generates confirmation page and confirmation emails to user and D2L site admin.
+    Generates confirmation page and confirmation emails to user and D2L site 
+    admin.
     '''
-    session = request.session
-    if 'uc' not in session:
-        session.flash('Please login to place request.')
+    if not logged_in(request):
         return HTTPFound(location=request.route_url('login'))
     form = SelectCoursesForm()
-    csrf_token = session.get_csrf_token()
+    csrf_token = request.session.get_csrf_token()
 
-    submitter_email = session['uniqueName'] + '@' + \
+    submitter_email = request.session['uniqueName'] + '@' + \
         request.registry.settings['EMAIL_DOMAIN']
-    name = session['firstName'] + ' ' + session['lastName']
+    name = request.session['firstName'] + ' ' + request.session['lastName']
     sender = request.registry.settings['mail.username']
 
     '''remove for production'''
@@ -167,32 +163,52 @@ def confirmation(request):
     message = Message(subject="Course Combine Confirmation",
         sender=sender,
         recipients=[sender, submitter_email])
-
-    message.body = make_msg_text(name,
-        submitter_email,
-        session['courses_to_combine'],
-        session['base_course'],
-        request)
-
-    message.html = make_msg_html(name,
-        submitter_email,
-        session['courses_to_combine'],
-        session['base_course'],
-        request)
-
+    message.body = make_msg_text(name, submitter_email, request)
+    message.html = make_msg_html(name, submitter_email, request)
     mailer = get_mailer(request)
     mailer.send_immediately(message, fail_silently=False)
 
     return{'csrf_token': csrf_token,
         'name': name,
         'form': form, 
-        'base_course': session['base_course'],
-        'courses_to_combine': session['courses_to_combine']
+        'base_course': request.session['base_course'],
+        'courses_to_combine': request.session['courses_to_combine']
         }
 
 ###########
 # Helpers #
 ###########
+
+
+def session_exists(request):
+    if 'uc' in request.session:
+        uc = request.session['uc']
+        service_uc = request.session['service_uc']
+        return uc, service_uc
+    else:
+        try:
+            request.session['uc'] = uc = appContext.create_user_context(
+                result_uri=request.url,
+                host=request.registry.settings['LMS_HOST'],
+                encrypt_requests=request.registry.settings['ENCRYPT_REQUESTS'])
+            request.session['service_uc'] = service_uc = \
+                appContext.create_user_context(
+                result_uri=request.url,
+                host=request.registry.settings['LMS_HOST'],
+                encrypt_requests=request.registry.settings['ENCRYPT_REQUESTS'])
+            service_uc.user_id = request.registry.settings['USER_ID']
+            service_uc.user_key = request.registry.settings['USER_KEY']
+            return uc, service_uc
+        except KeyError:
+            session.flash('Please login.')
+            return False
+
+def logged_in(request):
+    if 'uc' not in request.session:
+        request.session.flash('Please login to place request.')
+        return False
+    return True
+
 
 def get_user_data(uc, request):
     '''
@@ -204,16 +220,17 @@ def get_user_data(uc, request):
     return requests.get(my_url).json()
 
 
-def store_user_data(session, userData):
+def store_user_data(request, userData):
     '''
     Stores user info in session.
     '''
-    session['firstName'] = userData['FirstName']
-    session['lastName'] = userData['LastName']
-    session['userId'] = userData['Identifier']
+
+    request.session['firstName'] = userData['FirstName']
+    request.session['lastName'] = userData['LastName']
+    request.session['userId'] = userData['Identifier']
     '''PRODUCTION: UNCOMMENT FOLLOWING LINE AND DELETE THE ONE AFTER THAT'''
-    #session['uniqueName'] = userData['UniqueName']
-    session['uniqueName'] = 'lookerb'
+    #request.session['uniqueName'] = userData['UniqueName']
+    request.session['uniqueName'] = 'lookerb'
 
 
 def get_semester_code():
@@ -227,7 +244,7 @@ def get_semester_code():
     elif month >= 1 and month <= 5:
         semester = SPRING
         year = year - 1
-    else: # month is between
+    else: # month equals/is between 6 & 7
         semester = SUMMER
         year = year - 1
     code = str(year) + semester
@@ -238,19 +255,17 @@ def get_semester_code():
     return code
 
 
-def get_courses(uc, semester_code, request, session):
+def get_courses(uc, semester_code, request):
     '''
     Creates list of courses with same semester code.
     '''
     myUrl = uc.create_authenticated_url(
         '/d2l/api/lp/{0}/enrollments/users/{1}/orgUnits/'.format(
-        request.registry.settings['VER'], session['userId']))
+        request.registry.settings['VER'], request.session['userId']))
     kwargs = {'params': {}}
     kwargs['params'].update({'roleId':request.registry.settings['ROLE_ID']})
     kwargs['params'].update({'orgUnitTypeId': request.registry.settings['ORG_UNIT_TYPE_ID']})
     r = requests.get(myUrl, **kwargs)
-
-    print("REASON", r.reason)
 
     course_list = []
     end = False
@@ -345,15 +360,18 @@ def get_course(uc, code, request):
         return False
 
 
-def process_add_class(uc, request, form, add_form, session, semester_code, csrf_token):
+def process_add_class(uc, request, form, add_form, semester_code):
     '''
     Processes add_form, the form that allows for manual addition of a course
     to the list of those available to be combined.
     '''
+    session = request.session
+    csrf_token = request.session.get_csrf_token()
     course_code = make_code(add_form, semester_code)
     course_to_add = get_course(uc, course_code, request)
     if course_to_add == False:
-        session.flash("Error adding course to list. Please check course details and try again.")
+        session.flash("Error adding course to list. \
+            Please check course details and try again.")
         return {'form': form, 'add_form': add_form, 'csrf_token': csrf_token}
     if add_form.validate():
         session['course_list'].append({
@@ -362,7 +380,6 @@ def process_add_class(uc, request, form, add_form, session, semester_code, csrf_
             u'code': course_code,
             u'parsed': parse_code(course_code)
             })
-        print("ADDED SESSION", session['course_list'])
         return HTTPFound(location=request.route_url('request'))
     else:
         session.flash("Error adding course to list. Please check course details and try again.")
@@ -370,10 +387,12 @@ def process_add_class(uc, request, form, add_form, session, semester_code, csrf_
     
 
 
-def process_combine_request(form, add_form, course_list, request, session, csrf_token):
+def process_combine_request(form, add_form, course_list, request):
     '''
     Processes form, the form for submitting the actual course combine request.
     '''
+    session = request.session
+    csrf_token = request.session.get_csrf_token()
     course_ids = form.courseIds.data
     courses_to_combine = [course for course in course_list if course['courseId'] in course_ids]
     base_course = {}
@@ -393,10 +412,12 @@ def process_combine_request(form, add_form, course_list, request, session, csrf_
         return HTTPFound(location=request.route_url('confirmation'))
 
 
-def make_msg_text(firstName, lastName, coursesToCombine, baseCourse, request):
+def make_msg_text(firstName, lastName, request):
     '''
     Generates confirmation email message text.
-    ''' 
+    '''
+    coursesToCombine = request.session['courses_to_combine']
+    baseCourse = request.session['base_course']
     greeting = "Hello {0} {1},\n".format(firstName, lastName)
     opening = "You have asked to have the following courses combined into " + \
         "{0}, {1} (OU {2}):\n\nCourse Name\t(Course Id)\tD2L OU Number\n".format(baseCourse['parsed'],
@@ -409,10 +430,12 @@ def make_msg_text(firstName, lastName, coursesToCombine, baseCourse, request):
     return msg_body
 
 
-def make_msg_html(firstName, lastName, coursesToCombine, baseCourse, request):
+def make_msg_html(firstName, lastName, request):
     '''
     Generates confirmation email message in HTML.
     '''
+    coursesToCombine = request.session['courses_to_combine']
+    baseCourse = request.session['base_course']
     greeting = "<p>Hello {0} {1},</p><p>".format(firstName, lastName)
     opening = "You have asked to have the following courses combined into " +\
         " {0}, {1} (OU {2}):</p>".format(baseCourse['parsed'], baseCourse['name'], baseCourse['courseId'])

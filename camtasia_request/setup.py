@@ -57,9 +57,9 @@ requires = [
     'zope.interface==4.1.2',
     ]
 
-setup(name='CourseCombine',
+setup(name='camtasia_request',
       version='0.0',
-      description='CourseCombine',
+      description='camtasia_request',
       long_description=README + '\n\n' + CHANGES,
       classifiers=[
         "Programming Language :: Python",
@@ -70,15 +70,15 @@ setup(name='CourseCombine',
       author='Brian Looker',
       author_email='lookerb@uwosh.edu',
       url='',
-      keywords='web pyramid pylons Desire2Learn D2L Brightspace Valence',
+      keywords='web pyramid pylons',
       packages=find_packages(),
       include_package_data=True,
       zip_safe=False,
       install_requires=requires,
       tests_require=requires,
-      test_suite="coursecombine",
+      test_suite="camtasia_request",
       entry_points="""\
       [paste.app_factory]
-      main = coursecombine:main
+      main = camtasia_request:main
       """,
       )
