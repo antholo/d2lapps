@@ -74,27 +74,6 @@ def request_form(request):
         return HTTPFound(location=request.route_url('login'))
     else:
         uc, service_uc = current_session
-
-    '''
-    if 'uc' in session:
-        uc = session['uc']
-        service_uc = session['service_uc'] 
-    else:
-        try:
-            session['uc'] = uc = appContext.create_user_context(
-                result_uri=request.url,
-                host=request.registry.settings['LMS_HOST'],
-                encrypt_requests=request.registry.settings['ENCRYPT_REQUESTS'])
-            session['service_uc'] = service_uc = appContext.create_user_context(
-                result_uri=request.url,
-                host=request.registry.settings['LMS_HOST'],
-                encrypt_requests=request.registry.settings['ENCRYPT_REQUESTS'])
-            service_uc.user_id = request.registry.settings['USER_ID']
-            service_uc.user_key = request.registry.settings['USER_KEY']
-        except KeyError:
-            session.flash('Please login.')
-            return HTTPFound(location=request.route_url('login'))
-    '''
     user_data = get_user_data(uc, request)
     store_user_data(request, user_data)
     semester_code = get_semester_code()
@@ -113,9 +92,7 @@ def request_form(request):
         request.session.flash('No courses were found in D2L for this semester.\
             Please <a href="http://www.uwosh.edu/d2lfaq/d2l-login">log into \
             D2L</a> to confirm you have classes in D2L.')
-
         return {'form': form, 'add_form': add_form, 'csrf_token': csrf_token}
-
     form.baseCourse.choices = get_baseCourse_choices(course_list, request)
     add_form = AdditionalCourseForm(request.POST, prefix="add_form")
     if request.method == 'POST':
@@ -224,7 +201,6 @@ def store_user_data(request, userData):
     '''
     Stores user info in session.
     '''
-
     request.session['firstName'] = userData['FirstName']
     request.session['lastName'] = userData['LastName']
     request.session['userId'] = userData['Identifier']
@@ -383,8 +359,7 @@ def process_add_class(uc, request, form, add_form, semester_code):
         return HTTPFound(location=request.route_url('request'))
     else:
         session.flash("Error adding course to list. Please check course details and try again.")
-        return {'form': form, 'add_form': add_form, 'csrf_token': csrf_token}
-    
+        return {'form': form, 'add_form': add_form, 'csrf_token': csrf_token}    
 
 
 def process_combine_request(form, add_form, course_list, request):
@@ -412,38 +387,40 @@ def process_combine_request(form, add_form, course_list, request):
         return HTTPFound(location=request.route_url('confirmation'))
 
 
-def make_msg_text(firstName, lastName, request):
+def make_msg_text(name, submitter_email, request):
     '''
     Generates confirmation email message text.
     '''
     coursesToCombine = request.session['courses_to_combine']
     baseCourse = request.session['base_course']
-    greeting = "Hello {0} {1},\n".format(firstName, lastName)
+    greeting = "Hello {0},\n".format(name)
     opening = "You have asked to have the following courses combined into " + \
         "{0}, {1} (OU {2}):\n\nCourse Name\t(Course Id)\tD2L OU Number\n".format(baseCourse['parsed'],
         baseCourse['name'], baseCourse['courseId'])
     courseTable = "\n".join("{0},\t{1}\t(OU {1})".format(course['name'],
         course['code'], course['courseId']) for course in coursesToCombine)
-    closing = "\nIf this is incorrect, please contact our D2L site" + \
-        "administrator at " + request.registry.settings['EMAIL_SITE_ADMIN'] + "."
+    closing = "\nYour contact information: {0}".format(submitter_email) +\
+        "\nIf this is incorrect, please contact our D2L site administrator" +\
+        " at {0}.".format(request.registry.settings['EMAIL_SITE_ADMIN'])
     msg_body = greeting + opening + courseTable + closing
     return msg_body
 
 
-def make_msg_html(firstName, lastName, request):
+def make_msg_html(name, submitter_email, request):
     '''
     Generates confirmation email message in HTML.
     '''
     coursesToCombine = request.session['courses_to_combine']
     baseCourse = request.session['base_course']
-    greeting = "<p>Hello {0} {1},</p><p>".format(firstName, lastName)
+    greeting = "<p>Hello {0},</p><p>".format(name)
     opening = "You have asked to have the following courses combined into " +\
         " {0}, {1} (OU {2}):</p>".format(baseCourse['parsed'], baseCourse['name'], baseCourse['courseId'])
     tableHead = "<table><thead><tr><th>Course Name</th><th>Course Id</th><th>(D2L OU Number)</th></thead>"
     courseTable = "".join("<tr><td>{0}</td><td>{1}</td><td>({2})</td></tr>".format(
         course['name'], course['code'], course['courseId']) for course in coursesToCombine)
     tableClose = "</table>"
-    closing = "<p>If this is incorrect, please contact our D2L site" + \
-        "administrator at " + request.registry.settings['EMAIL_SITE_ADMIN'] + ".</p>"
+    closing = "<p>Your contact information: {0}</p>".format(submitter_email) +\
+        "<p>If this is incorrect, please contact our D2L site administrator" +\
+        " at {0}.</p>".format(request.registry.settings['EMAIL_SITE_ADMIN'])
     msg_html = greeting + opening + tableHead + courseTable + tableClose + closing
     return msg_html

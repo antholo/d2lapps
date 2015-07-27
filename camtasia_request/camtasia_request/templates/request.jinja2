@@ -1,0 +1,63 @@
+{% extends "template.jinja2" %}
+{% block content %}
+	<h2 class="documentFirstHeading">Request a New Course Setup</h2>
+	<p class="documentDescription">Use this form to request setup for a new course profile on the Camtasia Relay server.</p>
+	<div id="parent-fieldname-formPrologue">
+		<p>We need to collect a little information about the course you want to set up. It shouldn't hurt too badly.</p>
+	</div>
+	<div>
+		<form role="form" method="post" action="">
+		<input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+			{% if form.errors %}
+					{% for error in form.errors.values() %}
+					<div class="app_error">{{ error[0] }}</div>
+					{% endfor %}
+				{% endif %}
+			<div>
+				{{ form.course.label }}
+				<div class="formHelp">{{ form.course.description }}</div>
+			</div>
+			{{ form.course }}
+			<div class="field ArchetypesBooleanWidget ">
+				{{ form.embed }} {{ form.embed.label }}
+				<div class="formHelp">{{ form.embed.description }}</div>
+			</div>
+			<div>
+				{{ form.download }} {{ form.download.label }}
+				<div class="formHelp">{{ form.download.description }}</div>
+			</div>
+			<div>
+				{{ form.share }} {{ form.share.label }}
+				<div class="formHelp">{{ form.share.description }}</div>
+			</div>
+			<div class="field ArchetypesTextAreaWidget ">
+				{{ form.courseName.label }}
+				<div class="formHelp">{{ form.courseName.description }}</div>
+				{{ form.courseName(class="blurrable firstToFocus", rows="1", cols="40") }}
+			</div>
+			<div class="field ArchetypesTextAreaWidget ">
+				{{ form.location.label }}
+				<div class="formHelp">{{ form.location.description }}</div>
+				{{ form.location(class="blurrable firstToFocus", rows="1", cols="40") }}
+			</div>
+			<div class="field ArchetypesSelectionWidget ">
+				<span class="formQuestion">{{ form.expiration.label }}</span>
+				<div class="formHelp">{{ form.expiration.description }}</div>
+				{{ form.expiration }}
+			</div>
+			<div>
+				{{ form.training }} {{ form.training.label }}
+				<div class="formHelp">{{ form.training.description }}</div>
+			</div>
+			<div>
+				{{ form.comments.label }}
+				{{ form.comments(class="blurrable firstToFocus", rows="5", cols="40") }}
+			</div>
+			<input class="context" type="submit" name="form_submit" value="Submit"></input>
+		</form>
+		<div class="" id="parent-fieldname-formEpilogue">
+            <p>That should do it.  We'll set up accounts for you in Relay and MediaSpace, add a player and, if requested, a link for subscription in iTunes to your course D2L homepage. We'll send you an email with important usage instructions when we're done.</p>
+			<p>Thanks!</p>
+        </div>
+	</div>
+{% endblock %}

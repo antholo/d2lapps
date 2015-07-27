@@ -65,7 +65,7 @@ def request_form(request):
     '''
     Generates and processes request form.
     '''
-    session = request.session
+    #session = request.session
     csrf_token = request.session.get_csrf_token()
 
     if 'uc' in request.session:
@@ -184,7 +184,7 @@ def get_semester_code():
     '''
     year = date.today().year - BASE_YEAR
     month = date.today().month
-    if month >= 7 and month <= 12:
+    if month >= 8 and month <= 12:
         semester = FALL
     elif month >= 1 and month <= 5:
         semester = SPRING

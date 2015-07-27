@@ -1,0 +1,29 @@
+{% extends "template.jinja2" %}
+{% block content %}
+    <h2>Thank You</h2>
+    <p>{{ name }}, please review your submission below. Contact <a href="mailto:bannenbl@uwosh.edu">Liz Bannenberg</a> with any corrections.</p>
+    <p>After reviewing, you can submit another <a href="/request">camtasia setup request</a> or <a href="/logout">logout</a>.</p>
+    <form method="post" action="/">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+        <dl>
+            <dt>{{ form.embed.label }}</dt>
+                <dd>{{ requestDetails['embed'] }}</dd>
+            <dt>{{ form.download.label }}</dt>
+                <dd>{{ requestDetails['download'] }}</dd>
+            <dt>{{ form.share.label }}</dt>
+                <dd>{{ requestDetails['share'] }}</dd>
+            <dt>Course OU number in D2L</dt>
+                <dd>{{ requestDetails['courseId'] }}</dd>
+            <dt>{{ form.location.label }}</dt>
+                <dd>{{ requestDetails['location'] }}</dd>
+            <dt>{{ form.courseName.label }}</dt>
+                <dd>{{ requestDetails['courseName'] }}</dd>
+            <dt>{{ form.expiration.label }}</dt>
+                <dd>{{ requestDetails['expiration'] }}</dd>
+            <dt>{{ form.training.label }}</dt>
+                <dd>{{ requestDetails['training'] }}</dd>
+            <dt>{{ form.comments.label }}</dt>
+                <dd>{{ requestDetails['comments'] }}</dd>
+        </dl>
+    </form>
+{% endblock %}
